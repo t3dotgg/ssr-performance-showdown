@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
-import fastifyHtml from "fastify-html";
-import { createHtmlFunction } from "./client/index.js";
 
 import { Worker } from "worker_threads";
 
@@ -12,16 +10,42 @@ const __dirname = dirname(__filename);
 
 export async function main() {
   const server = Fastify();
-  await server.register(fastifyHtml);
-
-  server.addLayout(createHtmlFunction(server));
 
   server.get("/", (req, reply) => {
     const worker = new Worker(join(__dirname, "worker.js"), { type: "module" });
 
     worker.on("message", (html) => {
-      console.log("HTML?", html);
-      reply.html(html);
+      reply.header("Content-Type", "text/html; charset=utf-8")
+        .send(`<!DOCTYPE html>
+      <html lang="en">
+        <head>
+        <style>
+        body {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          background-color: #f0f0f0;
+          margin: 0;
+        }
+        #wrapper {
+          width: 960px;
+          height: 720px;
+          position: relative;
+          background-color: white;
+        }
+        .tile {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          background-color: #333;
+        }
+        </style>
+        </head>
+        <body>
+          ${html}
+        </body>
+      </html>`);
     });
 
     worker.on("error", (err) => {

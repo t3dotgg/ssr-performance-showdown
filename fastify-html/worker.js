@@ -1,12 +1,6 @@
 // worker.js
 import { parentPort } from "worker_threads";
 
-import Fastify from "fastify";
-import fastifyHtml from "fastify-html";
-
-const server = Fastify();
-await server.register(fastifyHtml);
-
 parentPort.on("message", (message) => {
   const wrapperWidth = 960;
   const wrapperHeight = 720;
@@ -39,15 +33,14 @@ parentPort.on("message", (message) => {
     radius += step * 0.015;
   }
 
-  console.log("we tried");
-
-  const response = server.html(`<div id="wrapper">
-    ${tiles.map(({ x, y }) =>
-      server.html(`<div
+  const response = tiles
+    .map(
+      ({ x, y }) =>
+        `<div
           class="tile"
-          style="left: ${x.toFixed(2)}px; top: ${y.toFixed(2)}px"></div>`)
-    )}
-    </div>`);
+          style="left: ${x.toFixed(2)}px; top: ${y.toFixed(2)}px"></div>`
+    )
+    .join("");
 
   parentPort.postMessage(response);
 });
