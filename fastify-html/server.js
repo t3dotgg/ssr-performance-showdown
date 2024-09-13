@@ -8,50 +8,31 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const NUM_WORKERS = 12;
+const workers = [];
+
+// Create a pool of workers
+for (let i = 0; i < NUM_WORKERS; i++) {
+  const worker = new Worker(join(__dirname, "worker.js"), { type: "module" });
+  worker.setMaxListeners(0); // Remove the limit on listeners
+  workers.push(worker);
+}
+
+let currentWorker = 0;
+
 export async function main() {
   const server = Fastify();
 
   server.get("/", (req, reply) => {
-    const worker = new Worker(join(__dirname, "worker.js"), { type: "module" });
+    const worker = workers[currentWorker];
+    currentWorker = (currentWorker + 1) % NUM_WORKERS;
 
-    worker.on("message", (html) => {
-      reply.header("Content-Type", "text/html; charset=utf-8")
-        .send(`<!DOCTYPE html>
-      <html lang="en">
-        <head>
-        <style>
-        body {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          background-color: #f0f0f0;
-          margin: 0;
-        }
-        #wrapper {
-          width: 960px;
-          height: 720px;
-          position: relative;
-          background-color: white;
-        }
-        .tile {
-          position: absolute;
-          width: 10px;
-          height: 10px;
-          background-color: #333;
-        }
-        </style>
-        </head>
-        <body>
-          ${html}
-        </body>
-      </html>`);
-    });
+    const messageHandler = (html) => {
+      reply.header("Content-Type", "text/html; charset=utf-8").send(html);
+      worker.removeListener("message", messageHandler);
+    };
 
-    worker.on("error", (err) => {
-      console.error(err);
-      reply.code(500).send("Internal Server Error");
-    });
+    worker.on("message", messageHandler);
 
     // Start the worker
     worker.postMessage("start");
