@@ -4,17 +4,28 @@ import Fastify from "fastify";
 const NUM_WORKERS = 12;
 const workers = [];
 
+// Create a pool of workers
+for (let i = 0; i < NUM_WORKERS; i++) {
+  const worker = new Worker("./worker.js");
+  workers.push(worker);
+}
+
+let currentWorker = 0;
+
 export async function main() {
   const server = Fastify();
 
   server.get("/", (req, reply) => {
-    const worker = new Worker("./worker.js");
+    const worker = workers[currentWorker];
+    currentWorker = (currentWorker + 1) % NUM_WORKERS;
 
-    worker.addEventListener("message", (event) => {
+    const listener = (event) => {
       reply.header("Content-Type", "text/html; charset=utf-8").send(event.data);
 
-      worker.terminate();
-    });
+      worker.removeEventListener("message", listener);
+    };
+
+    worker.addEventListener("message", listener);
 
     // Start the worker
     worker.postMessage("start");
