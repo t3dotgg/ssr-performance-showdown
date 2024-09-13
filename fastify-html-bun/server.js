@@ -19,13 +19,15 @@ export async function main() {
     const worker = workers[currentWorker];
     currentWorker = (currentWorker + 1) % NUM_WORKERS;
 
-    const listener = (event) => {
-      reply.header("Content-Type", "text/html; charset=utf-8").send(event.data);
-
-      worker.removeEventListener("message", listener);
-    };
-
-    worker.addEventListener("message", listener);
+    worker.addEventListener(
+      "message",
+      (event) => {
+        reply
+          .header("Content-Type", "text/html; charset=utf-8")
+          .send(event.data);
+      },
+      { once: true }
+    );
 
     // Start the worker
     worker.postMessage("start");
