@@ -7,5 +7,8 @@
   "dependencies": {
     "fastify": "^4.28.1",
     "fastify-html": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.9"
   }
 }

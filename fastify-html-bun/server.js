@@ -1,38 +1,20 @@
-#!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 
-import { Worker } from "worker_threads";
-
-import { dirname, join } from "path";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const NUM_WORKERS = 12;
 const workers = [];
-
-// Create a pool of workers
-for (let i = 0; i < NUM_WORKERS; i++) {
-  const worker = new Worker(join(__dirname, "worker.js"), { type: "module" });
-  worker.setMaxListeners(0); // Remove the limit on listeners
-  workers.push(worker);
-}
-
-let currentWorker = 0;
 
 export async function main() {
   const server = Fastify();
 
   server.get("/", (req, reply) => {
-    const worker = workers[currentWorker];
-    currentWorker = (currentWorker + 1) % NUM_WORKERS;
+    const worker = new Worker("./worker.js");
 
-    const messageHandler = (html) => {
-      reply.header("Content-Type", "text/html; charset=utf-8").send(html);
-      worker.removeListener("message", messageHandler);
-    };
+    worker.addEventListener("message", (event) => {
+      reply.header("Content-Type", "text/html; charset=utf-8").send(event.data);
 
-    worker.on("message", messageHandler);
+      worker.terminate();
+    });
 
     // Start the worker
     worker.postMessage("start");
