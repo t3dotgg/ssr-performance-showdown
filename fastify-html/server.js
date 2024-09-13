@@ -1,47 +1,55 @@
 #!/usr/bin/env node
-import { fileURLToPath } from "node:url";
-import Fastify from "fastify";
+import { fileURLToPath } from 'node:url'
+import Fastify from 'fastify'
+import fastifyHtml from 'fastify-html'
+import { createHtmlFunction } from './client/index.js'
 
-import { Worker } from "worker_threads";
+export async function main () {
+  const server = Fastify()
+  await server.register(fastifyHtml)
 
-import { dirname, join } from "path";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+  server.addLayout(createHtmlFunction(server))
 
-const NUM_WORKERS = 12;
-const workers = [];
+  server.get('/', (req, reply) => {
+    const wrapperWidth = 960
+    const wrapperHeight = 720
+    const cellSize = 10
+    const centerX = wrapperWidth / 2
+    const centerY = wrapperHeight / 2
 
-// Create a pool of workers
-for (let i = 0; i < NUM_WORKERS; i++) {
-  const worker = new Worker(join(__dirname, "worker.js"), { type: "module" });
-  worker.setMaxListeners(0); // Remove the limit on listeners
-  workers.push(worker);
-}
+    let angle = 0
+    let radius = 0
 
-let currentWorker = 0;
+    const tiles = []
+    const step = cellSize
 
-export async function main() {
-  const server = Fastify();
+    let x
+    let y
+    while (radius < Math.min(wrapperWidth, wrapperHeight) / 2) {
+      x = centerX + Math.cos(angle) * radius
+      y = centerY + Math.sin(angle) * radius
 
-  server.get("/", (req, reply) => {
-    const worker = workers[currentWorker];
-    currentWorker = (currentWorker + 1) % NUM_WORKERS;
+      if (x >= 0 && x <= wrapperWidth - cellSize && y >= 0 && y <= wrapperHeight - cellSize) {
+        tiles.push({ x, y })
+      }
 
-    const messageHandler = (html) => {
-      reply.header("Content-Type", "text/html; charset=utf-8").send(html);
-      worker.removeListener("message", messageHandler);
-    };
+      angle += 0.2
+      radius += step * 0.015
+    }
 
-    worker.on("message", messageHandler);
+    return reply.html`<div id="wrapper">
+      !${tiles.map(({ x, y }) => (
+        server.html`<div
+          class="tile"
+          style="left: ${x.toFixed(2)}px; top: ${y.toFixed(2)}px"></div>`
+      ))}
+    </div>`
+  })
 
-    // Start the worker
-    worker.postMessage("start");
-  });
-
-  return server;
+  return server
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const server = await main();
-  await server.listen({ port: 3000 });
+  const server = await main()
+  await server.listen({ port: 3000 })
 }
