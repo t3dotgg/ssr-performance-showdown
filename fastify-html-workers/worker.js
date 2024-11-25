@@ -1,7 +1,7 @@
 // worker.js
 import { parentPort } from "worker_threads";
 
-parentPort.on("message", (message) => {
+parentPort.on("message", ({jobId}) => {
   const wrapperWidth = 960;
   const wrapperHeight = 720;
   const cellSize = 10;
@@ -42,7 +42,9 @@ parentPort.on("message", (message) => {
     )
     .join("");
 
-  parentPort.postMessage(`<!DOCTYPE html>
+  parentPort.postMessage({
+    jobId,
+    html: `<!DOCTYPE html>
       <html lang="en">
         <head>
         <style>
@@ -70,5 +72,6 @@ parentPort.on("message", (message) => {
         </head>
         <body><div id="wrapper">${contents}</div>
         </body>
-      </html>`);
+      </html>`
+  });
 });
