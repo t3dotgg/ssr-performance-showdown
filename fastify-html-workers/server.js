@@ -18,24 +18,28 @@ for (let i = 0; i < NUM_WORKERS; i++) {
   workers.push(worker);
 }
 
-let currentWorker = 0;
+let nextJobId = 0;
 
 export async function main() {
   const server = Fastify();
 
   server.get("/", (req, reply) => {
-    const worker = workers[currentWorker];
-    currentWorker = (currentWorker + 1) % NUM_WORKERS;
+    const currentJobId = nextJobId++;
+    const worker = workers[currentJobId % NUM_WORKERS];
 
-    const messageHandler = (html) => {
-      reply.header("Content-Type", "text/html; charset=utf-8").send(html);
+    const messageHandler = ({jobId, html}) => {
+      if (jobId != currentJobId) {
+        //console.error(`Got reply for wrong jobId (jobId: ${currentJobId}, got: ${jobId})`)
+        return;
+      }
       worker.removeListener("message", messageHandler);
+      reply.header("Content-Type", "text/html; charset=utf-8").send(html);
     };
 
     worker.on("message", messageHandler);
 
     // Start the worker
-    worker.postMessage("start");
+    worker.postMessage({jobId: currentJobId});
   });
 
   return server;
